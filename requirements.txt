@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+opencv-python
+numpy
+pillow
+edge-tts
+requests
+python-multipart

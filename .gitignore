@@ -1,0 +1,6 @@
+jobs/
+__pycache__/
+*.pyc
+.gemini_key
+.env
+.venv/

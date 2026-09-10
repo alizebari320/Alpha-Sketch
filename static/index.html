@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha-Sketch — Image to Sketch Video</title>
+<style>
+  :root {
+    --bg: #101116; --panel: #17181f; --panel2: #1d1f28;
+    --line: #2a2c38; --text: #eceef2; --dim: #9a9dab;
+    --accent: #ff2e88; --accent2: #22d3ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 40px 24px 80px; }
+  header { text-align: center; margin-bottom: 42px; }
+  .logo { font-size: 40px; font-weight: 800; letter-spacing: -1px; }
+  .logo span { color: var(--accent); }
+  .tagline { color: var(--dim); margin-top: 8px; font-size: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 28px;
+  }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 14px;
+    padding: 52px 20px; text-align: center; cursor: pointer;
+    transition: all .2s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: #1a1b23; }
+  .drop img { max-height: 320px; max-width: 100%; border-radius: 10px; }
+  .drop .icon { font-size: 44px; margin-bottom: 12px; }
+  .drop .hint { color: var(--dim); margin-top: 8px; font-size: 14px; }
+  .opts { display: flex; gap: 16px; margin-top: 22px; flex-wrap: wrap; }
+  .opt { flex: 1; min-width: 180px; }
+  .opt label { display: block; color: var(--dim); font-size: 13px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .opt select {
+    width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 15px;
+  }
+  .btn {
+    margin-top: 24px; width: 100%; padding: 16px; font-size: 17px; font-weight: 700;
+    color: #fff; background: linear-gradient(135deg, var(--accent), #ff6a3d);
+    border: none; border-radius: 12px; cursor: pointer; transition: opacity .2s;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .status { margin-top: 28px; display: none; }
+  .bar-outer { height: 12px; background: var(--panel2); border-radius: 6px; overflow: hidden; }
+  .bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .5s; }
+  .stage { display: flex; justify-content: space-between; margin-top: 10px; color: var(--dim); font-size: 14px; }
+  .stage .pct { color: var(--text); font-weight: 700; }
+  .err { margin-top: 16px; background: #3a1520; border: 1px solid #7a2a3d; color: #ff9db8; padding: 12px 16px; border-radius: 10px; display: none; }
+  .result { margin-top: 36px; display: none; }
+  .result h2 { font-size: 22px; margin-bottom: 4px; }
+  .result .meta { color: var(--dim); font-size: 14px; margin-bottom: 20px; }
+  .result .meta b { color: var(--accent2); }
+  .videos { display: flex; gap: 20px; flex-wrap: wrap; }
+  .vbox { flex: 1; min-width: 260px; max-width: 400px; }
+  .vbox video { width: 100%; border-radius: 14px; background: #000; border: 1px solid var(--line); }
+  .vbox .vlabel { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .vbox .vlabel span { color: var(--dim); font-size: 13px; text-transform: uppercase; letter-spacing: .5px; }
+  .vbox a {
+    color: #fff; text-decoration: none; font-size: 13px; font-weight: 700;
+    background: var(--panel2); border: 1px solid var(--line);
+    padding: 8px 14px; border-radius: 8px;
+  }
+  .vbox a:hover { border-color: var(--accent); }
+  .sketches { margin-top: 26px; }
+  .sketches h3 { font-size: 15px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
+  .thumbs { display: flex; gap: 12px; flex-wrap: wrap; }
+  .thumbs img {
+    height: 110px; border-radius: 10px; border: 1px solid var(--line);
+    background: #fff; padding: 4px;
+  }
+  .thumbname { font-size: 12px; color: var(--dim); text-align: center; margin-top: 6px; }
+  .again { margin-top: 28px; background: none; border: 1px solid var(--line); color: var(--dim); padding: 12px 22px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+  .again:hover { color: var(--text); border-color: var(--dim); }
+  footer { text-align: center; color: var(--dim); font-size: 13px; margin-top: 60px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">Alpha<span>-Sketch</span></div>
+    <div class="tagline">Drop one photo. Get an AI-narrated sketch video — voiceover, captions &amp; 4 sketch styles.</div>
+  </header>
+
+  <div class="card" id="uploadCard">
+    <div class="drop" id="drop">
+      <div class="icon">🖼️</div>
+      <div id="dropText"><b>Click or drop your image here</b></div>
+      <div class="hint">JPEG · PNG · WebP — max 12 MB</div>
+    </div>
+    <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>
+    <div class="opts">
+      <div class="opt">
+        <label>Language</label>
+        <select id="lang">
+          <option value="en">English</option>
+          <option value="ar">العربية</option>
+          <option value="ku">کوردی سۆرانی (captions only)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" id="go" disabled>Create My Sketch Video</button>
+    <div class="status" id="status">
+      <div class="bar-outer"><div class="bar" id="bar"></div></div>
+      <div class="stage"><span id="stage">Starting…</span><span class="pct" id="pct">0%</span></div>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+
+  <div class="result" id="result">
+    <h2 id="rTitle"></h2>
+    <div class="meta" id="rMeta"></div>
+    <div class="videos">
+      <div class="vbox">
+        <video id="vidV" controls playsinline></video>
+        <div class="vlabel"><span>Reel · 9:16</span><a id="dlV" download>Download</a></div>
+      </div>
+      <div class="vbox">
+        <video id="vidL" controls playsinline></video>
+        <div class="vlabel"><span>YouTube · 16:9</span><a id="dlL" download>Download</a></div>
+      </div>
+    </div>
+    <div class="sketches">
+      <h3>Sketch styles generated from your image</h3>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+    <button class="again" id="again">↻ Make another one</button>
+  </div>
+
+  <footer>Alpha-Sketch — runs 100% locally · Gemini vision optional (offline fallback included)</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const drop = $('drop'), file = $('file'), go = $('go');
+let selected = null;
+
+drop.onclick = () => file.click();
+file.onchange = () => { if (file.files[0]) pick(file.files[0]); };
+['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) pick(f); });
+
+function pick(f) {
+  if (!['image/jpeg','image/png','image/webp'].includes(f.type)) { alert('Please choose a JPEG, PNG or WebP image.'); return; }
+  if (f.size > 12*1024*1024) { alert('Image is larger than 12 MB.'); return; }
+  selected = f;
+  const url = URL.createObjectURL(f);
+  drop.innerHTML = '<img src="' + url + '" alt="your image">';
+  go.disabled = false;
+}
+
+go.onclick = async () => {
+  if (!selected) return;
+  go.disabled = true;
+  $('status').style.display = 'block';
+  $('err').style.display = 'none';
+  setProgress(0, 'Uploading image');
+  const fd = new FormData();
+  fd.append('image', selected);
+  fd.append('lang', $('lang').value);
+  try {
+    const r = await fetch('/api/generate', { method: 'POST', body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Upload failed');
+    const { job_id } = await r.json();
+    poll(job_id);
+  } catch (e) { fail(e.message); }
+};
+
+function setProgress(p, stage) {
+  $('bar').style.width = p + '%';
+  $('pct').textContent = Math.round(p) + '%';
+  $('stage').textContent = stage;
+}
+function fail(msg) {
+  $('err').textContent = '⚠ ' + msg;
+  $('err').style.display = 'block';
+  $('stage').textContent = 'Failed';
+  go.disabled = false;
+}
+
+async function poll(id) {
+  try {
+    const r = await fetch('/api/status/' + id);
+    const j = await r.json();
+    if (j.status === 'error') return fail(j.error || 'Something went wrong');
+    setProgress(j.progress, j.stage);
+    if (j.status === 'done') return show(id, j);
+    setTimeout(() => poll(id), 1200);
+  } catch (e) { fail(e.message); }
+}
+
+function show(id, j) {
+  $('uploadCard').style.display = 'none';
+  const res = $('result');
+  res.style.display = 'block';
+  $('rTitle').textContent = j.title;
+  $('rMeta').innerHTML = 'Script by <b>' + (j.source === 'gemini' ? 'Gemini AI' : 'offline fallback') +
+    '</b> · ' + j.scenes.length + ' scenes · rendered locally';
+  const v = '/api/video/' + id + '/vertical', l = '/api/video/' + id + '/landscape';
+  $('vidV').src = v; $('vidL').src = l;
+  $('dlV').href = v; $('dlL').href = l;
+  const thumbs = $('thumbs'); thumbs.innerHTML = '';
+  ['pencil','color','blueprint','cartoon'].forEach(s => {
+    const d = document.createElement('div');
+    d.innerHTML = '<img src="/api/sketch/' + id + '/' + s + '"><div class="thumbname">' + s + '</div>';
+    thumbs.appendChild(d);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+$('again').onclick = () => location.reload();
+</script>
+</body>
+</html>
